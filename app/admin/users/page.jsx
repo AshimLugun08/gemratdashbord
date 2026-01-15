@@ -56,7 +56,7 @@ export default function UsersPage() {
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">Phone</th>
-                <th className="px-6 py-4 text-center">Action</th>
+              
               </tr>
             </thead>
 
@@ -80,14 +80,6 @@ export default function UsersPage() {
                     {user.phone || "N/A"}
                   </td>
 
-                  <td className="whitespace-nowrap px-6 py-4 text-center">
-                    <button 
-                      className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete User"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
                 </tr>
               ))}
               
