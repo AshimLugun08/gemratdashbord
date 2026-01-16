@@ -227,11 +227,11 @@ export default function ProductsPage() {
       label: "Stock",
       render: (row) => row.stock ?? "-",
     },
-    {
-      key: "category",
-      label: "Category",
-      render: (row) => row.subCategoryId?.name || row.category || "-",
-    },
+    // {
+    //   key: "category",
+    //   label: "Category",
+    //   render: (row) => row.subCategoryId?.name || row.category || "-",
+    // },
     {
       key: "createdAt",
       label: "Created",
