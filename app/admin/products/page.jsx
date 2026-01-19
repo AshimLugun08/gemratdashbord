@@ -31,6 +31,7 @@ const COLOR_OPTIONS = [
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [subCategories, setSubCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -40,12 +41,14 @@ export default function ProductsPage() {
 
   const [currentPage, setCurrentPage] = useState(1)
   const [sortBy, setSortBy] = useState("newest")
+  
   const itemsPerPage = 10
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
+    categoryId: "",
     subCategoryId: "",
     size: [],
     color: [],
@@ -80,6 +83,24 @@ export default function ProductsPage() {
     fetchCategories()
   }, [])
 
+  useEffect(() => {
+    const fetchSubCategories = async () => {
+      if (!formData.categoryId) {
+        setSubCategories([])
+        return
+      }
+      try {
+        const data = await categoriesAPI.getSubCategories(formData.categoryId)
+        setSubCategories(data.subCategories || data || [])
+      } catch (err) {
+        console.error("Failed to fetch subcategories:", err)
+        setSubCategories([])
+      }
+    }
+
+    fetchSubCategories()
+  }, [formData.categoryId])
+
   const sortedProducts = [...products].sort((a, b) => {
     if (sortBy === "newest") {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
@@ -99,11 +120,17 @@ export default function ProductsPage() {
   const handleOpenModal = (product = null) => {
     if (product) {
       setSelectedProduct(product)
+      // Extract categoryId from nested structure
+      const categoryId = product.subCategoryId?.categoryId?._id || 
+                        product.subCategoryId?.categoryId || 
+                        product.categoryId || ""
+      
       setFormData({
         name: product.name || product.title || "",
         description: product.description || "",
         price: product.price || "",
-        subCategoryId: product.subCategoryId?._id || product.subCategoryId || product.category || "",
+        categoryId: categoryId,
+        subCategoryId: product.subCategoryId?._id || product.subCategoryId || "",
         size: product.size || [],
         color: product.color || [],
         stock: product.stock || "",
@@ -115,6 +142,7 @@ export default function ProductsPage() {
         name: "",
         description: "",
         price: "",
+        categoryId: "",
         subCategoryId: "",
         size: [],
         color: [],
@@ -128,10 +156,12 @@ export default function ProductsPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setSelectedProduct(null)
+    setSubCategories([])
     setFormData({
       name: "",
       description: "",
       price: "",
+      categoryId: "",
       subCategoryId: "",
       size: [],
       color: [],
@@ -200,6 +230,26 @@ export default function ProductsPage() {
     }
   }
 
+  // Helper function to get category name
+  const getCategoryName = (product) => {
+    if (product.subCategoryId?.categoryId?.name) {
+      return product.subCategoryId.categoryId.name
+    }
+    if (product.categoryId?.name) {
+      return product.categoryId.name
+    }
+    return "-"
+  }
+
+  // Helper function to get subcategory name
+  const getSubCategoryName = (product) => {
+    console.log("Product SubCategoryId:", product)
+    if (product.subCategoryId?.name) {
+      return product.subCategoryId.name
+    }
+    return "-"
+  }
+
   const columns = [
     {
       key: "image",
@@ -227,11 +277,16 @@ export default function ProductsPage() {
       label: "Stock",
       render: (row) => row.stock ?? "-",
     },
-    // {
-    //   key: "category",
-    //   label: "Category",
-    //   render: (row) => row.subCategoryId?.name || row.category || "-",
-    // },
+    {
+      key: "category",
+      label: "Category",
+      render: (row) => getCategoryName(row),
+    },
+    {
+      key: "subcategory",
+      label: "Sub-Category",
+      render: (row) => getSubCategoryName(row),
+    },
     {
       key: "createdAt",
       label: "Created",
@@ -383,33 +438,56 @@ export default function ProductsPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="subCategoryId">SubCategory</Label>
+              <Label htmlFor="categoryId">Category</Label>
               <select
-                id="subCategoryId"
-                value={formData.subCategoryId}
-                onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                id="categoryId"
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, subCategoryId: "" })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 required
               >
-                <option value="">Select a subcategory</option>
+                <option value="">Select Category</option>
                 {categories.map((cat) => (
-                  <option key={cat._id || cat.id} value={cat._id || cat.id}>
-                    {cat.name || cat.title}
+                  <option key={cat._id} value={cat._id}>
+                    {cat.name}
                   </option>
                 ))}
               </select>
             </div>
+
             <div>
-              <Label htmlFor="stock">Stock</Label>
-              <Input
-                id="stock"
-                type="number"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                placeholder="50"
+              <Label htmlFor="subCategoryId">Sub-Category</Label>
+              <select
+                id="subCategoryId"
+                value={formData.subCategoryId}
+                onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                disabled={!formData.categoryId}
                 required
-              />
+              >
+                <option value="">
+                  {!formData.categoryId ? "Select category first" : "Select Sub-Category"}
+                </option>
+                {subCategories.map((sub) => (
+                  <option key={sub._id} value={sub._id}>
+                    {sub.name}
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="stock">Stock Quantity</Label>
+            <Input
+              id="stock"
+              type="number"
+              value={formData.stock}
+              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+              placeholder="100"
+              required
+              min="0"
+            />
           </div>
 
           <div>
@@ -419,7 +497,7 @@ export default function ProductsPage() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Product description"
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex min-h-80px w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
 
